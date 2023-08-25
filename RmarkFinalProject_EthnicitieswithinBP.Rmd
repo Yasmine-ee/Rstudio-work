@@ -1,7 +1,6 @@
 ---
 title: "Which particular ethnicities have been able to assimilate within British Politics?"
 author: "Yasmine Calvert"
-date: "April 2022"
 output:
   word_document: default
   toc: yes
@@ -697,5 +696,6 @@ influenceIndexPlot(model2,vars=c('Studentized','hat','Cook'))
 ```
 
 ## Conclusion ## 
-To conclude, Pakistani is the only ethnicity to have a significantly statically p value out of all ethnicities. However, the overall hypothesis has been rejected new to the results produced in the regression models and the distribution of data. The data had heteroscedasticity, which can be seen due to the placement of residuals of the regression. The limitations of the data sample were the lack respondents from different ethnicities, this caused the research to be inconclusive. 
+To summarise, Pakistani is the only ethnicity with a statistically significant p value among all ethnicities. However, the overarching hypothesis has been rejected in light of the regression model findings and data distribution. The data showed heteroscedasticity, as evidenced by the location of the regression residuals. The absence of responders from various backgrounds was one of the data sample's limitations, which resulted in the research being inconclusive. 
+
 
