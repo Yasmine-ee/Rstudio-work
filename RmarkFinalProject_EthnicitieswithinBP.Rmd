@@ -1,0 +1,701 @@
+---
+title: "Which particular ethnicities have been able to assimilate within British Politics?"
+author: "Yasmine Calvert"
+date: "April 2022"
+output:
+  word_document: default
+  toc: yes
+  number_sections: yes
+  toc_depth: 2
+  html_document:
+    df_print: paged
+abstract: The question posed is crucial in a multicultural society such as the United
+  Kingdom, and it is vital to evaluate whether/ there are ethnic tendencies. For example,
+  who is more apathetic towards politics and why? Who believes they are being heard,
+  and are/ some groups marginalised in the political sphere? The quantitative data
+  analysis approach is applied in this research, and the data/ utilized in this research
+  came from a British electoral survey. In this case, a comparative analysis will
+  be performed to determine/ whether or not distinct variables influence the independent
+  variable. This will either reject or accept the hull hypothesis. In this/ case unfortunately
+  due to the dataset sample which has a lack of respondents from ethnic minorities
+  it is not reasonable to accept/ the hypothesis./
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(haven)
+setwd("~/Report2")
+TheDataset<-read_spss("bes_rps_2019_ukds_1.3.0.sav")
+```
+
+```{r include=FALSE}
+library("knitr")
+require("knitr")
+library(magrittr)
+library(dplyr)
+library(readxl)
+library(tidyverse)
+library(plotly)
+library(dplyr)
+library(reshape2)
+library(nnet)
+library(equatiomatic)
+library(ggplot2) 
+library(descr) 
+library(carData)
+library(texreg) 
+library(cowplot) 
+library(coefplot) 
+library(car) 
+library(carData)
+library(lfe)
+if (!require(olsrr)) install.packages("olsrr")
+library(olsrr)
+if (!require(lmtest)) install.packages("lmtest")
+library(lmtest)
+```
+
+### Introduction ###
+*The research topic is 'Which particular ethnicities have been able to assimilate within British politics?' Their interest in politics will be used to measure the question at hand.  Scholarly literature has discussed the relevance of ethnic minorities participating in politics since they are in a "vulnerable position"(ypn,2016) as compared to other groups in society.
+H1- The hypothesis is that ethnic minorities are more likely to be apathetic about British politics, preventing them from fully assimilating into British politics.
+The variable a03, which measures political interest, will be used to measure apathetic attitudes. This will be the dependent variable, and it will be compared to demographic variables, controlled variables, and independent variables.
+The 2019 British election survey is a Post-Election Random Probability Survey, there are 3,946 observations and 422 variables in this survey (BES,2019). This shows it has a large sample size and a wide range of variables to choose from. Random sampling is frequently used because of its unbiased way to conducting surveys; nevertheless, in this situation, there is considerable bias, causing the hypothesis to be rejected.*
+
+```{r Removing MISSING DATA and subsetting data, include=FALSE}
+TheDataset<- within(TheDataset ,{
+  Q23_CSES  <- NA
+  Q23_CSES [TheDataset$Q23_CSES == 1]<- "Male"
+  Q23_CSES [TheDataset$Q23_CSES  == 2]<- "Female"})
+
+#Removing certain ethnicities due to the lack of respondents, since one respondent does not represent a whole ethnic group and it would not be acceptable to make generalisations
+#Chinese, Arab ,Irish, other prefer not to say, any other mixed background, any other Asian background. Have been removed 
+
+TheDataset<- within(TheDataset ,{
+ y11  <- NA
+  y11 [TheDataset$y11 == 1]<- "English/Welsh/Scottish/NorthernIreland/British"
+  y11 [TheDataset$y11 == 4]<-"Other white background"
+  y11 [TheDataset$y11 == 8 ] <-"Mixed background"
+  y11 [TheDataset$y11 == 9]<-"Indian"
+  y11 [TheDataset$y11 == 10 ] <-"Pakistani"
+  y11 [TheDataset$y11 == 11]<-"Bangladeshi"
+  y11 [TheDataset$y11 == 14] <-"African"
+  y11[TheDataset$y11 == 15]<- "Caribbean"
+})
+
+
+#Politicians don't care what people like me think
+TheDataset<- within(TheDataset,{
+ m02_1 <-NA
+ m02_1[TheDataset$m02_1==1]<-"Strongly disagree"
+ m02_1[TheDataset$m02_1==2]<-"Disagree"
+ m02_1[TheDataset$m02_1==3]<-"Niether agree nor disagree"
+ m02_1[TheDataset$m02_1==4]<-"Agree"
+})
+
+
+
+#Politicians ignore the issues I really care about
+TheDataset<- within(TheDataset,{
+  m02_6 <-NA
+  m02_6[TheDataset$m02_6==1]<-"Strongly disagree"
+  m02_6[TheDataset$m02_6==2]<-"Disagree"
+  m02_6[TheDataset$m02_6==3]<-"Niether agree nor disagree"
+  m02_6[TheDataset$m02_6==4]<-"Agree"
+  m02_6[TheDataset$m02_6==5]<-"Strongly agree"
+})
+
+
+#: Do you ever think of yourself as belonging to any particular class?
+TheDataset<- within(TheDataset,{
+  w01<- NA
+  w01[TheDataset$w01==1]<-"Middle Class"
+  w01[TheDataset$w01==2]<-"Working Class"
+  w01[TheDataset$w01==4]<-"niether"
+})
+
+
+
+#Do you have any educational or work-related qualifications?
+table(TheDataset$y12a)
+TheDataset<- within(TheDataset,{
+  y12a<- NA
+  y12a[TheDataset$y12a==1]<-"yes"
+  y12a[TheDataset$y12a==2]<-"no"
+})
+
+
+
+#subsettinng data and renaming variables
+
+yc<-TheDataset%>%
+  select(Q23_CSES,y10_banded, y11, w01, m02_1, m02_6, a03, y12a)%>%
+  rename(Ethnicity =y11)%>%
+  rename(Class = w01) %>%
+  rename(Care = m02_1) %>%
+  rename(Issues = m02_6) %>%
+  rename(gender = Q23_CSES) %>%
+  rename(Age=y10_banded)%>%
+  rename(qualification = y12a)%>%
+  mutate(yesInterested=a03 <=2,
+         yesInterested=if_else(yesInterested==TRUE, "1","0"))%>%
+  mutate(NotInterested=a03 >=3,
+         NotInterested=if_else(NotInterested==TRUE,"1","0"))%>%
+  na.omit()
+
+#Age (putting it into categories and removing 85 plus)
+yc$Age[yc$Age== -2]<-NA
+yc$Age[yc$Age== 8]<-NA
+
+yc$Age<-factor(yc$Age, levels = c(1,2,3,4,5,6,7), 
+               labels = c("18-24", "25-34", "35-44", "45-54", "55-64", "65-74", "75-84"))
+
+#Redo go the new Na's I have created are gone and wont alter the variable age.
+yc<-TheDataset%>%
+  select(Q23_CSES,y10_banded, y11, w01, m02_1, m02_6, a03, y12a)%>%
+  rename(Ethnicity =y11)%>%
+  rename(Class = w01) %>%
+  rename(Care = m02_1) %>%
+  rename(Issues = m02_6) %>%
+  rename(gender = Q23_CSES) %>%
+  rename(Age=y10_banded)%>%
+  rename(qualification = y12a)%>%
+  mutate(yesInterested=a03 <=2,
+         yesInterested=if_else(yesInterested==TRUE, "1","0"))%>%
+  mutate(NotInterested=a03 >=3,
+         NotInterested=if_else(NotInterested==TRUE,"1","0"))%>%
+  na.omit()
+
+#To see the variables names 
+names(yc)
+
+
+```
+## Descriptive statistics and data preparation ##
+To prepare the data in a clean manner, I have created a new dataset selecting only the variables needed for this research.  After selecting them, I have converted them into categorical variables and removed NAs from them.  The NAs have been removed with the omit.na function.  The reason to converting them into categorical variables is to define what goes into what group and to compare against other variables.
+Additionally, the variables have been manipulated for instance, in the ethnicity variable certain groups are no longer present due to the small number of respondents such as Chinese and Arab. This will make the new data set more concise and clearer. Within the subsetted data, the variables have been given clearer names to be easier to differentiates between the variables. This has been done with the rename function. 
+
+Within the new dataset, there are 10 variables (which is truly 8 since one variable has been mutated and spilt into two new variables), this is compared to 422 variables prior. Since, all NAs have been removed and certain answers such ‘I don’t know’ etc, there are 840 observations compared to 3,946. This indicates that the new dataset is slower and cleaner than the original data.
+
+
+### Demographic Variables ###
+The demographic variables that have been chosen is age, gender, ethnicity and class.
+
+>-Age :
+Age has been defined by the data dictionary by age at last birthday, they have been banded together,such as"18-24", "25-34", "35-44", "45-54", "55-64", "65-74", "75-84" and 85 plus. When cleaning the data 85 plus was removed alongside not stated and refusal. The selection of age was to see if there are generational difference among ethnicities or not.
+
+>-Gender:
+The gender of participants was selected to see the comparison between male and females. To see if gender plays a role with political apathy. I have categorized the numerical variable into categorical, and to ensure there are no NAs, the omit.na function was used.
+
+>-Ethnicity:
+This is the main variable of this report and a crucial to answer the research question. As mentioned previously, certain ethnic groups had to be removed from the data since they had one respondent. The data dictionary has defined Ethnicity by the Ethnic group or background participants are from. It has also been converted into a categorical variable from a numeric. 
+
+>-Class:The Class individuals perceive themselves, is important in see if socio-economic environments impact the individuals attitudes politics as a certain ethnicity. This has been converted into three categories , 'working class' , 'Middle class' and 'neither'. 
+Within the data dictionary -'subjective class' - WO1 .
+
+### Dependent variable ###
+The consequence is the dependent variable, so in this report it is interest in politics
+
+>-Political interest has been categorized into two categories yes and no.  
+
+### Independent variables ###
+The cause is an independent variable. In this report two questions will be used as the independent variable. 
+
+>-1st whether the participant feel 'Politicians ignore the issues they really care about'. There has been a selection of 4 answers to this question; 'Agree', 'Disagree','Strongly disagree' and ' Neither agree nor disagree'.
+>-The following independent variable is whether 'Politicians don't care what people like them think', again it is broken into 4 answers and they are the same as the 1st.
+The decision to select these two independent variables, was because they how show whether the individual feels marginalized and if they think they have a representative within politics. This in theory should correlate with the dependent variable of political interest.
+
+## The controlled  variable ##
+The controlled variable is in the form of qualifications whether its educational or work related.
+
+
+# Visulation of the Variables #
+```{r Age visualisation, echo=FALSE}
+slices<-c(0.066, 0.0904, 0.116, 0.1583, 0.2011, 0.1261904, 0.0214)
+ibls<-c("18-24",
+        "25-34",
+        "35-44",
+        "45-54",
+        "55-64", "65-74", "75-84")
+
+pct<- round(slices/sum(slices)*100)
+ibls<- paste(ibls,pct)
+ibls<-paste(ibls,"%",sep = "")
+pie(slices,labels = ibls, col = rainbow(length(ibls)),
+    main= "PieChart: Showing the respondents ages")
+```
+
+>-The largest amount of respondents are 55-64 year old (26%) and the second largest is 45-54 year old with 20%.
+It is evident that the survey is answered predominantly by middle aged individuals. 
+
+>-The Lowest is 75-84 year old with 3% and the second lowest is 18-24 with 8%. Disregarding the 75-84 band, the following smallest percentage are 18-24 is 25-34, showing that it does not represent each age range equally. This is due to the very nature of the random sample. 
+
+```{r}
+#The Median/mean and mode for Age
+median(yc$Age)
+mean(yc$Age)
+mode(yc$Age)
+
+# this gives percentage in each group
+prop.table(table(yc$Age))
+
+#Density plot
+ggplot(data = yc, aes(x=Age))+
+  geom_density()
+```
+
+## Gender ##
+```{r Visualisation gender, echo=FALSE}
+#Visual for gender
+gendernum<-table(yc$gender)
+pie(gendernum,values="%",
+    fill= c("blue"), main = "The Gender of respondents")
+table(yc$gender)
+```
+>-There are more women participants than men. But it is not a big difference, so it has no bias.
+
+
+```{r echo=TRUE}
+# this gives the probability of it being Male or Female
+prop.table(table(yc$gender))
+
+```
+
+## Ethnicity ##
+```{r Visualisation of Ethnicitity, echo=FALSE}
+
+#Ethnicity
+table(yc$Ethnicity)/840
+slices2<-c(0.013, 0.0047, 0.0059, 0.94, 0.0092, 0.0035, 0.0023, 0.0142)
+ibls2<-c(" African", "Bangladeshi", " Caribbean", "English/Welsh/Scottish/NorthernIreland/British",
+         "Indian", "Mixed background", " Other white background", "Pakistani")
+pct2<- round(slices2 /sum(slices2)*100)
+ibls2<- paste(ibls2,pct2)
+ibls2<-paste(ibls2,"%",sep = "")
+pie(slices2,labels = ibls2, col = rainbow(length(ibls2)),
+    main= "PieChart: Showing the Ethnicity of respondents")
+```
+>-The pie chart is not clear enough to see the other ethncities. However, what we are able to see is that the large majority of respondents were 'English/Welsh/Scottish/Northern Ireland/British'
+
+
+```{r echo=TRUE}
+#The table shows the number of respondents, it clear to see there is disparity between the respondents.
+table(yc$Ethnicity)
+
+# this Shows the probability 
+prop.table(table(yc$Ethnicity))
+
+class(yc$Ethnicity)
+```
+>-With 'English etc' having 94% probability this indicates that the results will be affected because of this. The sample was not diverse enough. 
+
+## Class ##
+```{r visulation of Class, echo=FALSE}
+cq<-table(yc$Class)
+pie(cq, main = "The Class indivduals percieve themselves")
+
+```
+
+```{r echo=TRUE}
+#The probability is pretty even between the three categories
+prop.table(table(yc$Class))
+#Showing what the particpants chose 
+table(yc$Class)
+class(yc$Class)
+```
+
+### Dependent variable: Political interest ###
+ 
+```{r echo=TRUE}
+#(interest in politics)
+table(yc$yesInterested)
+
+#The probability of an individual being political interested 
+prop.table(table(yc$yesInterested))
+
+```
+>-There is 71% chance that the respondent is political interested.
+
+### Independent variable (Politicians care about what people like me think and Politicians ignore the issues I really care about) ###
+
+```{r echo=FALSE}
+#DO Politicians care about what people like me think ?
+table(yc$Care)
+#care
+cc<-table(yc$Care)
+pie(cc, main = "Politicians don't care what people like me think")
+```
+
+
+```{r echo=TRUE}
+#Showing the probability
+prop.table(table(yc$Care))
+```
+
+
+```{r echo=FALSE}
+#Issues
+table(yc$Issues)
+ii<-table(yc$Issues)
+pie(ii, main = "Politicians ignore the issues I really care about")
+```
+
+
+```{r echo=TRUE}
+#Showing the probability
+prop.table(table(yc$Issues))
+```
+
+### controlled variable (Qualifications in the form of education and work) ###
+```{r echo=FALSE}
+q<-table(yc$qualification)
+pie(q, main = "Do you have any educational or work-related qualifications?")
+```
+
+
+```{r echo=TRUE}
+#Showing the probability
+prop.table(table(yc$qualification))
+
+table(yc$qualification)
+```
+>-84% of respondents have a type of qualification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Scatterplots  ##
+
+**Scatter plots are useful in quantitative analysis, since they show the extent of the correlation between the values**
+
+```{r echo=FALSE}
+ggplot(yc,aes(yesInterested,
+              Ethnicity ))+
+  geom_point(position = 'jitter')+
+  labs(x='Interest of politics',
+       y='Ethnicity', 
+       title = 'The relationship between the level of individuals who are
+       interest of politics within different ethnic groups')
+```
+
+>-What can be drawn from this plot is that ethncities such as Caribbean are extremely interested in politics since there are no dots on the other side. However, Pakistani individuals are less interested in Politics. Overall, there is a greater percent that individuals are politically interested.
+
+```{r echo=FALSE}
+ggplot(yc,aes(Care,
+              Ethnicity ))+
+  geom_point(position = 'jitter')+
+  labs(x='politicans care',
+       y='Ethnicity', 
+       title = 'The relationship between the opinion of individuals feel that politicans do not care what
+      people like them think, along ethnic lines')
+```
+>-Hard to interpret accurately since there is no clear correlation which a certain ethnicity and answer. However, not many individuals answered strongly disagree.
+
+```{r echo=FALSE}
+ggplot(yc,aes(Issues,
+              Ethnicity ))+
+  geom_point(position = 'jitter')+
+  labs(x='politicans care',
+       y='Ethnicity', 
+       title = 'The relationship between the opinion of individuals feel that Politicians ignore the issues they
+       really care about, along ethnic lines')
+```
+
+
+```{r echo=FALSE}
+#demographic variables
+
+ggplot(yc,aes(Age,
+              Ethnicity))+
+  geom_point(position = 'jitter')+
+  labs(x='Ethnicity',
+       y='Age',
+       title = 'The age of the particaptants and which ethinicity to they belong to')
+```
+>-The majority of ethnic minorities where quite young.
+>-Whereas, for the English et el it was more dense around middle age.
+
+```{r echo=FALSE}
+ggplot(yc,aes(Class,
+              Ethnicity))+
+  geom_point(position = 'jitter')+
+  labs(x='Ethnicity',
+       y='Age',
+       title = 'The relationship between the class of individuals and there ethinicty')
+```
+
+
+```{r echo=FALSE}
+ggplot(yc,aes(gender,
+              Ethnicity))+
+  geom_point(position = 'jitter')+
+  geom_smooth(method = 'lm', se = T)+
+  labs(x='Ethnicity',
+       y='Gender',
+       title = 'The relationship between the gender and ethinicty')
+```
+
+
+```{r echo=FALSE}
+#Controlled variable (Do they have any educational or work-related qualifications?)
+ggplot(yc,aes(qualification,
+              Ethnicity))+
+  geom_point(position = 'jitter')+
+  labs(x='Ethnicity',
+       y='Qualification',
+       title = 'The relationship between qualifications and ethinicity')
+
+```
+>-The majority of participants amongst all ethnicites have a qualification.
+
+
+
+## Chi-Square  ##
+>-A statistical strategy for determining if two category variables have a significant correlation.
+
+```{r Chi-square test, echo=FALSE}
+#chi squared since its categorical vs categorical 
+# ethnicity and Politicians ignore the issues I really care about
+test2<-table(yc$Ethnicity, yc$Issues)
+print(chisq.test(test2))
+```
+>-we reject the null hypothesis if the p-value that is bigger than 0.05.
+In this case the pvalue is 0.00277 which we are able to reject the null hypothesis and believe there is a strong correlation between the two. 
+
+
+```{r Chi-square test2 , echo=FALSE}
+#Ethnicity and Politicians don't care what people like me think
+test3<-table(yc$Ethnicity,yc$Care)
+table(yc$Ethnicity,yc$Care)
+print(chisq.test(test3))
+```
+>-There seems to be a correlation since the p-value is less than 0.05.
+
+```{r Chi-square test 3, echo=FALSE}
+#Ethnicity and Interest in politics
+table(yc$Ethnicity, yc$yesInterested)
+test4<-table(yc$Ethnicity, yc$yesInterested)
+             
+print(chisq.test(test4))
+fisher.test(test4)
+```
+<-Fisher test does the exact same thing as chisq.Since the p-value is smaller than 0.05.
+
+```{r Chi-square test 4, echo=FALSE}
+#control variable Qualification
+table(yc$Ethnicity, yc$qualification)
+test6 <-table(yc$Ethnicity, yc$qualification)
+print(chisq.test(test6))
+fisher.test(test6)
+```
+<-The p value is bigger than 0.05, so we accept the null hypothesis and accept that there is no significant relationship between the two variables.
+
+
+```{r echo=FALSE}
+#linear model 
+m1 <- lm(yesInterested ~Ethnicity,data=yc)
+summary(m1)
+```
+<- The residuals are the distance from the data to the fitted line, it should be symmetrical, meaning the min and max should be the same distance to 0. The min -0.9091 and the max is 0.6667. Also the 1st quartile and 2rd have the same distance to 0, it is -0.438. Which suggests that the model has some statistically significant.
+<-The coefficients show that the ethnicity with statistical significance is Pakistani.
+Interest in politics = 0.90909 + -0.57576 times Pakistani
+<-The P value is 0.039 which is statically significant.
+<-the variation is not that much since  the R squared and adjusted R squared values are below 0.005.
+<- The intercept is at 0.90909.
+
+
+```{r echo=FALSE}
+# odds ratios only
+exp(coef(m1))
+
+confint(m1)
+# odds ratios and 95% CI
+exp(cbind(OR = coef(m1), confint(m1)))
+
+screenreg(m1)
+```
+
+
+```{r echo=FALSE}
+#Plotting
+plot(y=m1$residuals, x=m1$fitted.values, ylab='Residuals', xlab='Fitted values')+
+  abline(h=0, col="Pink")
+```
+<-This Shows the distribution is mirrored and as a result it is no homoskedasticty.
+
+
+
+
+```{r echo=TRUE}
+
+coefplot(m1,inncerCI=2,outerCI=2,intercept = FALSE)
+
+#Only Pakistan is not touching the line so, in case of Pakistan we do reject the null hypotheses however, every other ethnic group has touch the line. 
+
+#To further investigate how the residuals are distributed Q-Q plot
+res<-resid(m1)
+qqnorm(res)
+#The Q-Q plot is not an average Q-Q plot, it has a spike of identical values. It can be interpreted as bimodal since there are two values with the highest frequency.
+
+#Histogram of residuals
+ols_plot_resid_hist(m1)
+```
+
+<-The histogram shows there is a negative skew. Meaning there is not a nomral distribution.
+
+
+```{r echo=FALSE, warning=FALSE}
+#Mutli-logistic regression 
+#The independent variables
+yc$yesInterested=as.factor(yc$yesInterested)
+model <- glm(yesInterested ~Ethnicity+ Care+ Issues,family=binomial(link='logit'),data=yc)
+summary(model)
+```
+<-Deviance residuals there is symmetric present.Which suggests there is a relationship between the values
+<-African is the case used, and is seen as the intercept which doesn't not have statistical significance.
+<-However, there is statistical significance within this model, such as Pakistani, CareNiether agree nor disagree and CareDisagree <-The fisher scoring iterations, is the likeness of it occurring.
+
+
+```{r echo=TRUE, warning=FALSE}
+exp(coef(model))
+confint(model)
+screenreg(model)
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+coefplot(model,inncerCI=2,outerCI=2,intercept = FALSE)
+names(model)
+plot(y=model$residuals, x=model$fitted.values, ylab='Residuals', xlab='Fitted values')+
+  abline(h=0, col='orange')
+
+anova(m1 ,model)
+#To further investigate how the residuals are distributed Q-Q plot
+res1<-resid(model)
+qqnorm(res1)
+```
+>-Can also be seen as a bimodal distribution
+
+```{r echo=FALSE, warning=FALSE}
+#The demographic variables
+model2<-glm(yesInterested~Ethnicity+Age +gender+Class+ qualification, 
+            family = binomial(link='logit'),data = yc)
+summary(model2)
+
+#To determine what the p value is (p-value = 1 - pchisq(deviance, degrees of freedom))
+1-pchisq(999.54, 839)
+1-pchisq(909.51, 826)
+```
+<-Deviance residuals there is some type of symmetric present.Which suggests there is a relationship between the variables.
+<-Both p values are statically siginifcant 
+
+```{r echo=TRUE, warning=FALSE}
+exp(coef(model2))
+confint(model2)
+screenreg(model2)
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+coefplot(model2,inncerCI=2,outerCI=2,intercept = FALSE)
+names(model2)
+plot(y=model2$residuals, x=model2$fitted.values, ylab='Residuals', xlab='Fitted values')+
+  abline(h=0, col='orange')
+#To further investigate how the residuals are distributed Q-Q plot
+res2<-resid(model2)
+qqnorm(res2)
+
+
+```
+>-Since, every variable does touch zero this shows that is it not significant.  Thus, accepting the null hypotheses. 
+
+>-QQ plot is the same tyep as the other two, suggesting the data set as a whole has bidomal. 
+```{r echo=FALSE, warning=FALSE}
+#Anova test
+anova(model,model2)
+#df displays the the degrees of freedom for the independent variable.
+
+anova(m1,model2)
+
+anova(model,model2, test = "Chisq")
+
+anova(m1,model,test ="Chisq")
+
+anova(m1,model2, test="Chisq")
+
+#Model is the best model out of all of them.
+```
+
+
+```{r include=FALSE}
+#The reason this is not included within the pdf format it is due the fact I'm unsure if this type of regression is correct.
+#Multinom 
+mn <-multinom(Ethnicity~., data = yc)
+summary(mn)
+exp(coef(mn))
+confint(mn)
+screenreg(mn)
+
+coefplot(mn,inncerCI=2,outerCI=2,intercept = FALSE)
+
+names(mn)
+plot(y=mn$residuals, x=mn$fitted.values, ylab='Residuals', xlab='Fitted values')+
+  abline(h=0, col='orange')
+
+#To further investigate how the residuals are distributed Q-Q plot
+res3<-resid(mn)
+qqnorm(res3)
+
+
+#Histogram of residuals
+hist(mn$residuals, xlab='Residuals', main="")
+
+```
+
+
+
+```{r echo=FALSE, warning=FALSE}
+#Heteroskedasticity -  is non-normally distributed residuals
+
+#breush-Pagan test
+bptest(model, studentize=FALSE)
+
+#shapiro.test
+shapiro.test(model$residuals)
+
+#Histogram of residuals
+hist(model$residuals, xlab='Residuals', main="")
+
+#Influential Outliers
+influenceIndexPlot(model,vars=c('Studentized','hat','Cook'))
+
+
+#breush-Pagan test
+bptest(model2, studentize = FALSE)
+
+#shapiro.test
+shapiro.test(model2$residuals)
+
+#Histogram of residuals
+hist(model2$residuals, xlab='Residuals', main="")
+
+#Influential Outliers
+influenceIndexPlot(model2,vars=c('Studentized','hat','Cook'))
+
+```
+
+## Conclusion ## 
+To conclude, Pakistani is the only ethnicity to have a significantly statically p value out of all ethnicities. However, the overall hypothesis has been rejected new to the results produced in the regression models and the distribution of data. The data had heteroscedasticity, which can be seen due to the placement of residuals of the regression. The limitations of the data sample were the lack respondents from different ethnicities, this caused the research to be inconclusive. 
+
